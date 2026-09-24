@@ -1,0 +1,624 @@
+﻿@using AerationSterilize.Application.Features.V1.Batch.Common.Dtos
+@inherits RazorLight.TemplatePage<BatchDto>
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<style>
+		@@page {
+			size: A4 landscape;
+			margin: 4mm 5mm;
+		}
+
+		*, *::before, *::after {
+			s box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			padding: 0;
+			font-family: Arial, sans-serif;
+			font-size: 6.5pt;
+			color: #000;
+			background-color: #ffffff;
+		}
+
+		/* Lớp bao ngoài cho mỗi trang riêng biệt */
+		.pdf-page {
+			page-break-after: always;
+			position: relative;
+			width: 100%;
+		}
+
+			/* Xóa ngắt trang ở trang cuối cùng tránh tạo trang trắng dư thừa */
+			.pdf-page:last-child {
+				page-break-after: avoid !important;
+			}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 5px;
+		}
+
+		td, th {
+			border: 0.3pt solid #888888;
+			padding: 2px 3px;
+			vertical-align: middle;
+			font-size: 6pt;
+			line-height: 1.1;
+		}
+
+		/* Header layout */
+		.hdr-table td {
+			padding: 4px;
+		}
+
+		.hdr-title {
+			font-size: 11pt;
+			font-weight: bold;
+			text-align: center;
+			letter-spacing: 0.2px;
+		}
+
+		.hdr-code {
+			font-size: 8pt;
+			font-weight: bold;
+			text-align: center;
+		}
+
+		.section-title {
+			background-color: #E2EFDA;
+			font-weight: bold;
+			text-align: center;
+			font-size: 7pt;
+			padding: 2px;
+		}
+
+		/* Product Type Block */
+		.pt-lbl {
+			background: #BDD7EE;
+			font-weight: bold;
+			text-align: center;
+			width: 85px;
+		}
+
+		.pt-item {
+			font-size: 6.5pt;
+			padding: 2px 4px;
+		}
+
+		/* Main Data Table */
+		.main-table th {
+			background: #DDEBF7;
+			font-weight: bold;
+			font-size: 5.5pt;
+			white-space: normal;
+			word-wrap: break-word;
+			padding: 3px 1px;
+		}
+
+			.main-table th.th-group {
+				background: #BDD7EE;
+				font-size: 6.5pt;
+			}
+
+		.main-table td {
+			text-align: center;
+			height: 17px; /* Giữ nguyên chiều cao cố định */
+			font-size: 5.2pt; /* Giảm cỡ chữ xuống mức này để vừa khít các dữ liệu dài (SAP, Lot, Code) */
+			line-height: 0.95; /* Thu hẹp khoảng cách dòng tối đa, nếu chữ dài có xuống dòng cũng không làm phình ô */
+			padding: 1px 2px; /* Thu hẹp padding để nhường không gian cho chữ */
+			/* Ép text ngắt dòng thông minh khi chạm biên ô, chống phình chiều rộng */
+			white-space: normal;
+			word-wrap: break-word;
+			word-break: break-all; /* Bẻ đôi chuỗi ký tự liền nhau (như mã Lot/Material) để ép vừa khít chiều rộng ô */
+		}
+
+		.main-table .td-left {
+			text-align: left;
+			padding-left: 3px;
+		}
+
+		/* Approval Box Row */
+		.approval-flow {
+			width: 100%;
+			margin-top: 5px;
+			margin-bottom: 5px;
+		}
+
+		.approval-box {
+			border: 0.5pt solid #000000;
+			text-align: center;
+			vertical-align: top;
+			padding: 0;
+			width: 15%;
+		}
+
+			.approval-box table {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+			}
+
+			.approval-box th {
+				background: #ffffff;
+				font-weight: normal;
+				font-size: 6.5pt;
+				border: none;
+				border-bottom: 0.5pt solid #000000;
+				padding: 2px;
+			}
+
+			.approval-box td {
+				border: none;
+				height: 38px;
+			}
+
+		.arrow-cell {
+			text-align: center;
+			vertical-align: middle;
+			font-size: 12pt;
+			color: #3B82F6;
+			width: 3%;
+		}
+
+		/* Footer Info Block */
+		.footer-info-table td {
+			font-size: 6.5pt;
+			padding: 4px;
+		}
+
+
+	</style>
+</head>
+<body>
+
+	@{
+		// 1. Khởi tạo danh sách và lấy tổng số item
+		var totalItems = Model.BatchItemDtos?.Count ?? 0;
+		var itemsPerPage = 15;
+
+		// Tính tổng số trang cần hiển thị (nếu không có item nào vẫn hiển thị 1 trang trống)
+		var totalPages = (int)Math.Ceiling((double)totalItems / itemsPerPage);
+		if (totalPages == 0) totalPages = 1;
+	}
+
+	@for (int p = 0; p < totalPages; p++)
+	{
+		<div class="pdf-page">
+
+			<table class="hdr-table">
+				<tr>
+					<td style="width: 110px;">
+						<strong>DIV / SECTION</strong><br />
+						<div style="margin-top:1px;">GPC/ Order control</div>
+					</td>
+					<td style="text-align: center;">
+						<div class="hdr-title">STERILIZATION - QA - PACKING PRODUCTION PLAN</div>
+					</td>
+					<td style="width: 110px; text-align: center;">
+						<div class="hdr-code">F - 6112 Ver 8</div>
+						<div style="margin-top:1px; font-size:6pt;">Page: @(p + 1) / @totalPages</div>
+					</td>
+				</tr>
+			</table>
+
+			<table style="table-layout: fixed;">
+				<colgroup>
+					<col style="width: 9%">
+					<col style="width: 12%">
+					<col style="width: 8%">
+					<col style="width: 6%">
+					<col style="width: 6%">
+					<col style="width: 6%">
+					<col style="width: 5%">
+					<col style="width: 8%">
+					<col style="width: 6%">
+					<col style="width: 6%">
+					<col style="width: 7%">
+					<col style="width: 7%">
+					<col style="width: 8%">
+					<col style="width: 6%">
+					<col style="width: 4%">
+				</colgroup>
+				<tr>
+					<td colspan="3" class="section-title">Plan request</td>
+					<td colspan="4" class="section-title">PR leader check</td>
+					<td colspan="8" class="section-title">Production result</td>
+				</tr>
+				<tr>
+					<td><strong>Sterilize date:</strong></td>
+					<td style="font-weight:bold;">@(Model.SterilizeDate != null ? Model.SterilizeDate.ToString("dd/MM/yyyy") : "")</td>
+					<td style="text-align: center;"><strong>QR Code</strong></td>
+					<td><strong>Sterilize M/C</strong></td>
+					<td></td>
+					<td rowspan="3"><strong>Check by</strong></td>
+					<td rowspan="3"></td>
+					<td><strong>Sterilize M/C</strong></td>
+					<td></td>
+					<td><strong>Batch No:</strong></td>
+					<td style="font-weight:bold;"></td>
+					<td><strong>Car No.</strong></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+				<tr>
+					<td><strong>Batch No:</strong></td>
+					<td style="font-weight:bold;">@Model.BatchNo</td>
+					<td rowspan="2" style="text-align:center;">@Raw(Model.QrCodeSvg)</td>
+					<td><strong>Q'ty BI</strong></td>
+					<td>10</td>
+					<td><strong>Start Date:</strong></td>
+					<td></td>
+					<td><strong>Start Time:</strong></td>
+					<td></td>
+					<td colspan="3"><strong>Kết quả xác nhận khử trùng đúng máy</strong></td>
+					<td style="background: #F2F2F2; font-weight: bold; text-align: center;">OK / NG</td>
+				</tr>
+				<tr>
+					<td><strong>QR code:</strong></td>
+					<td>@Model.QRCode</td>
+					<td><strong>PCD type</strong></td>
+					<td>Type E</td>
+					<td><strong>Finish Date:</strong></td>
+					<td></td>
+					<td><strong>Finish Time:</strong></td>
+					<td></td>
+					<td><strong>Operator:</strong></td>
+					<td colspan="3"></td>
+				</tr>
+			</table>
+
+			<table>
+				<tr>
+					<td class="pt-lbl">Product type</td>
+					<td class="pt-item">PTCA: ______</td>
+					<td class="pt-item">PLGW: ______</td>
+					<td class="pt-item">ESGW: ______</td>
+					<td class="pt-item">Tonus ES: ______</td>
+					<td class="pt-item">Endoligar: ______</td>
+					<td class="pt-item">Hyperion: ______</td>
+					<td class="pt-item">CAG: ______</td>
+					<td class="pt-item">Other: __________________</td>
+				</tr>
+			</table>
+
+			<table class="main-table">
+				<colgroup>
+					<col style="width: 20px;">
+					<col style="width: 35px;">
+					<col style="width: 45px;">
+					<col style="width: 45px;">
+					<col style="width: 100px;">
+					<col style="width: 30px;">
+					<col style="width: 50px;">
+					<col style="width: 50px;">
+					<col style="width: 30px;">
+					<col style="width: 25px;">
+					<col style="width: 25px;">
+					<col style="width: 25px;">
+					<col style="width: 25px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 30px;">
+					<col style="width: 30px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 50px;">
+					<col style="width: 25px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+					<col style="width: 35px;">
+				</colgroup>
+				<thead>
+					<tr>
+						<th class="th-group" rowspan="2">No</th>
+						<th class="th-group" colspan="8">Product information</th>
+						<th class="th-group" colspan="4">Number of Sterilize</th>
+						<th class="th-group" colspan="1">Attach label</th>
+						<th class="th-group" colspan="3">Q'ty test</th>
+						<th class="th-group" colspan="2">Sealing</th>
+						<th class="th-group" colspan="3">Sterilize</th>
+						<th class="th-group" colspan="1">Boxing</th>
+						<th class="th-group" colspan="3">Inspection</th>
+						<th class="th-group" rowspan="2">Delivery date plan</th>
+						<th class="th-group" rowspan="2">Group</th>
+						<th class="th-group" colspan="3">Packing</th>
+					</tr>
+					<tr>
+						<th>Number rank</th>
+						<th>Material</th>
+						<th>Drawing list no</th>
+						<th>Item name / Description</th>
+						<th>Dest.</th>
+						<th>Internal Lot (SAP)</th>
+						<th>External Lot 1</th>
+						<th>Q'ty Input</th>
+						<th>A (0331)</th>
+						<th>B (1087)</th>
+						<th>C (1302)</th>
+						<th>D (2544)</th>
+						<th>Status</th>
+						<th>Bioburden</th>
+						<th>Endotoxin</th>
+						<th>Particle</th>
+						<th>Q'ty Out</th>
+						<th>Gauge No</th>
+						<th>Q'ty Out</th>
+						<th>Q'ty Feat.</th>
+						<th>Keep Aeration</th>
+						<th>Status</th>
+						<th>Status</th>
+						<th>Judgment</th>
+						<th>Keep Sample</th>
+						<th>Stock in q'ty</th>
+						<th colspan="2">Stock in by</th>
+					</tr>
+				</thead>
+				<tbody>
+					@{
+						// Lấy tập hợp con tối đa 18 dòng tương ứng với trang hiện tại
+						var currentItems = Model.BatchItemDtos != null
+						? Model.BatchItemDtos.Skip(p * itemsPerPage).Take(itemsPerPage).ToList()
+						: new List<BatchItemDto>();
+
+						// Tính toán số thứ tự (STT) tiếp diễn chính xác qua các trang
+						int startNo = (p * itemsPerPage) + 1;
+					}
+
+					@foreach (var item in currentItems)
+					{
+						<tr class="data-row">
+							<td>@(startNo++)</td>
+							<td>@item.NumberRank</td>
+							<td>@item.Material</td>
+							<td>@item.DrawingListNo</td>
+							<td class="td-left">@item.ItemName</td>
+
+							<td>@item.Destination</td>
+							<td>@item.InternalLot</td>
+							<td>@item.ExternalLot1</td>
+							<td>@item.QtyInput</td>
+							<td>@item.A</td>
+							<td>@item.B</td>
+							<td>@item.C</td>
+							<td>@item.D</td>
+							<td></td>
+							<td>@(item.Biobudent > 0 ? item.Biobudent.ToString() : "")</td>
+							<td>@(item.Endotoxin > 0 ? item.Endotoxin.ToString() : "")</td>
+							<td>@(item.Particle > 0 ? item.Particle.ToString() : "")</td>
+							<td></td>
+							<td></td>
+							<td></td>
+							<td>@(item.QtyFeaturesTest > 0 ? item.QtyFeaturesTest.ToString() : "")</td>
+							<td>@(item.KeepAeration > 0 ? item.KeepAeration.ToString() : "")</td>
+							<td></td>
+							<td></td>
+							<td>OK/NG</td>
+							<td>@item.KeepSample</td>
+							<td>@(item.DeliveryDatePlan.HasValue? item.DeliveryDatePlan.Value.ToString("dd/MM/yy") : "")</td>
+							<td>@item.Group</td>
+							<td></td>
+							<td colspan="2"></td>
+						</tr>
+					}
+
+					@{
+						// Điền thêm các dòng trống để trang luôn giữ form cố định đủ 18 dòng
+						int filledRowsOnThisPage = currentItems.Count;
+						for (int i = filledRowsOnThisPage; i < itemsPerPage; i++)
+						{
+							<tr class="data-row">
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td colspan="2"></td>
+							</tr>
+						}
+					}
+				</tbody>
+			</table>
+
+			<table>
+				<tr>
+					<td style="width: 18%; vertical-align: top; padding: 2px;">
+						<strong>Remark:</strong><br />
+						Vị trí keep Aeration:<br />
+						Relate document :<br />
+						AVPE-1123 Ver.: ……..…….
+					</td>
+					<td style="width: 25%; vertical-align: top; padding: 2px;">
+						Xác nhận thời gian sản phẩm cần phải AERATION.<br />
+						Ghi chép thông tin vào ô bên cạnh.
+					</td>
+					<td style="padding: 0;">
+						<table style="margin: 0; border: none;">
+							<tr>
+								<th rowspan="2" style="background:#F2F2F2;">Status</th>
+								<th colspan="2" style="background:#F2F2F2;">Plan</th>
+								<th rowspan="2" style="background:#F2F2F2;">By</th>
+								<th colspan="2" style="background:#F2F2F2;">Actual</th>
+								<th rowspan="2" style="background:#F2F2F2; width: 85px;">Xác nhận đủ thời gian aeration<br /><span style="color:blue;">OK / NG</span></th>
+								<th rowspan="2" style="background:#F2F2F2;">By</th>
+							</tr>
+							<tr>
+								<th style="background:#F2F2F2;">Date</th>
+								<th style="background:#F2F2F2;">Time</th>
+								<th style="background:#F2F2F2;">Date</th>
+								<th style="background:#F2F2F2;">Time</th>
+							</tr>
+							<tr style="height: 16px;">
+								<td><strong>Start</strong></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+							</tr>
+							<tr style="height: 16px;">
+								<td><strong>Finish</strong></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+								<td></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+
+			<table class="approval-flow" style="border: none;">
+				<tr>
+					<td class="approval-box">
+						<table>
+							<tr><th colspan="2" style="font-weight: bold; background: #F2F2F2; padding: 1px;">Plan</th></tr>
+							<tr style="font-size: 5.5pt; border-bottom: 0.5pt solid #000000;">
+								<td style="width: 50%; border-right: 0.5pt solid #000000; text-align: center; height: 12px;">Made by</td>
+								<td style="width: 50%; text-align: center; height: 12px;">Confirmed by</td>
+							</tr>
+							<tr>
+								<td style="border-right: 0.5pt solid #000000; height: 38px;"></td>
+								<td style="height: 38px;"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="arrow-cell">&#10145;</td>
+					<td class="approval-box">
+						<table>
+							<tr><th colspan="2" style="font-weight: bold; background: #F2F2F2; padding: 1px;">Sterilize Process</th></tr>
+							<tr style="font-size: 5.5pt; border-bottom: 0.5pt solid #000000;">
+								<td style="width: 50%; border-right: 0.5pt solid #000000; text-align: center; height: 12px;">Confirmed by</td>
+								<td style="width: 50%; text-align: center; height: 12px;">Approval by</td>
+							</tr>
+							<tr>
+								<td style="border-right: 0.5pt solid #000000; height: 38px;"></td>
+								<td style="height: 38px;"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="arrow-cell">&#10145;</td>
+					<td class="approval-box">
+						<table>
+							<tr><th colspan="2" style="font-weight: bold; background: #F2F2F2; padding: 1px;">QA Inspection</th></tr>
+							<tr style="font-size: 5.5pt; border-bottom: 0.5pt solid #000000;">
+								<td style="width: 50%; border-right: 0.5pt solid #000000; text-align: center; height: 12px;">Made by</td>
+								<td style="width: 50%; text-align: center; height: 12px;">Confirmed by</td>
+							</tr>
+							<tr>
+								<td style="border-right: 0.5pt solid #000000; height: 38px;"></td>
+								<td style="height: 38px;"></td>
+							</tr>
+						</table>
+					</td>
+					<td class="arrow-cell">&#10145;</td>
+					<td class="approval-box">
+						<table>
+							<tr><th style="height: 14px; font-weight: bold; background: #F2F2F2; padding: 1px;">QA Approval</th></tr>
+							<tr><td style="height: 52px;"></td></tr>
+						</table>
+					</td>
+					<td class="arrow-cell">&#10145;</td>
+					<td class="approval-box">
+						<table>
+							<tr><th style="font-weight: bold; background: #F2F2F2; padding: 1px;">Packing</th></tr>
+							<tr style="font-size: 5.5pt; border-bottom: 0.5pt solid #000000;">
+								<td style="text-align: center; height: 12px;">Confirmed by</td>
+							</tr>
+							<tr><td style="height: 38px;"></td></tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+
+			<table class="footer-info-table" style="table-layout: fixed;">
+				<colgroup>
+					<col style="width: 55%;">
+					<col style="width: 10%;">
+					<col style="width: 35%;">
+				</colgroup>
+				<tr>
+					<td style="vertical-align: top; padding: 4px;">
+						<div style="font-size: 5.5pt; color: #444;">* E-Form</div>
+						<strong style="font-size: 7.5pt; display: block; margin-top: 1px;">Relate to document: AVPE-0120, AVPE-0406, AVPC-0100</strong>
+						<strong style="font-size: 7.5pt; display: block; margin-top: 2px;">Đối với sản phẩm thực hiện Test Endotoxin , sau khi khử trùng xong sẽ chuyển F-6112 cùng BI cho BIO</strong>
+					</td>
+					<td style="text-align: center; background: #fafafa; font-weight: bold; vertical-align: top;">
+						QA/ BIO<br /><span style="font-weight: normal; font-size: 5.5pt;">Confirmed by</span>
+					</td>
+					<td style="padding: 0; vertical-align: top;">
+						<table style="margin: 0; height: 100%; border: none;">
+							<tr>
+								<td colspan="4" style="font-size: 6pt; padding: 2px;">Check sản phẩm test Endotoxin: Yes / No &nbsp;&nbsp;&nbsp;&nbsp; Check by :<br />(Mục " Destination" là kí tự " USA;Abbott; Australia;China")</td>
+							</tr>
+							<tr style="background: #F2F2F2; font-weight: bold; font-size: 5.5pt; text-align: center;">
+								<td>Thời điểm test</td>
+								<td>Lot test Endotoxin</td>
+								<td>Lot test Particle</td>
+								<td>Q'ty test</td>
+							</tr>
+							<tr style="text-align: center; height: 14px;">
+								<td>Trước khử trùng</td>
+								<td>N/A</td>
+								<td>N/A</td>
+								<td rowspan="2" style="vertical-align: middle;">Pcs</td>
+							</tr>
+							<tr style="text-align: center; height: 14px;">
+								<td>Sau khử trùng</td>
+								<td>N/A</td>
+								<td>N/A</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="border-top: none;border-right: none; font-weight: bold; font-size: 7pt; padding: 3px;">ASAHI INTECC HA NOI CO., LTD</td>
+					<td style="border-top: none;border-left: none ;text-align: right; font-weight: bold; font-size: 7pt; padding-right: 5px; padding: 3px;">Effective date: 19-NOV-2025</td>
+				</tr>
+			</table>
+
+		</div>
+	}
+
+</body>
+</html>
